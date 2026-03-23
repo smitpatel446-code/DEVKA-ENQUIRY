@@ -25,6 +25,7 @@
 };
 
   const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
   const COL  = "enquiries";
 
   // expose to window so vanilla JS can call
