@@ -503,6 +503,97 @@
 </head>
 <body>
 
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen" style="
+  position:fixed; inset:0; z-index:99999;
+  background: linear-gradient(135deg, #0d3040 0%, #1a4a5c 60%, #2e7d8a 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'DM Sans',sans-serif;
+">
+  <div style="position:absolute;bottom:0;left:0;right:0;height:120px;
+    background:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1440 120%22%3E%3Cpath fill=%22rgba(255,255,255,0.05)%22 d=%22M0,60 C240,100 480,20 720,60 C960,100 1200,20 1440,60 L1440,120 L0,120Z%22/%3E%3C/svg%3E') bottom/100% no-repeat;">
+  </div>
+  <div style="
+    background:rgba(253,250,247,0.97); border-radius:16px;
+    padding:48px 40px 40px; width:100%; max-width:380px;
+    box-shadow:0 24px 64px rgba(0,0,0,0.35);
+    position:relative; z-index:1; text-align:center;
+  ">
+    <div style="
+      width:64px; height:64px; border-radius:50%;
+      background:linear-gradient(135deg,#c9954a,#e8b96a);
+      display:flex; align-items:center; justify-content:center;
+      font-size:28px; margin:0 auto 18px;
+      box-shadow:0 0 0 6px rgba(201,149,74,0.2);
+    ">&#127958;&#65039;</div>
+    <h1 style="font-family:'Cormorant Garamond',serif; font-size:1.7rem; font-weight:600; color:#1a4a5c; margin-bottom:4px;">Devka Beach Resort</h1>
+    <p style="font-size:0.78rem; color:#7a6d62; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:32px;">Enquiry Management System</p>
+    <div style="text-align:left; margin-bottom:16px;">
+      <label style="font-size:0.75rem; font-weight:500; color:#7a6d62; letter-spacing:0.07em; text-transform:uppercase; display:block; margin-bottom:6px;">Login ID</label>
+      <input id="login-id" type="text" placeholder="Enter your Login ID" autocomplete="off" style="
+        width:100%; padding:12px 14px; border:1.5px solid #d4c9bc;
+        border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.93rem;
+        color:#2a2118; outline:none; background:#fdfaf7; box-sizing:border-box;
+      " onfocus="this.style.borderColor='#2e7d8a'" onblur="this.style.borderColor='#d4c9bc'"/>
+    </div>
+    <div style="text-align:left; margin-bottom:8px;">
+      <label style="font-size:0.75rem; font-weight:500; color:#7a6d62; letter-spacing:0.07em; text-transform:uppercase; display:block; margin-bottom:6px;">Password</label>
+      <div style="position:relative;">
+        <input id="login-pass" type="password" placeholder="Enter your password" autocomplete="off" style="
+          width:100%; padding:12px 14px; border:1.5px solid #d4c9bc;
+          border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.93rem;
+          color:#2a2118; outline:none; background:#fdfaf7; box-sizing:border-box;
+        " onfocus="this.style.borderColor='#2e7d8a'" onblur="this.style.borderColor='#d4c9bc'"
+        onkeydown="if(event.key==='Enter') doLogin()"/>
+        <span onclick="togglePass()" id="eye-icon" style="
+          position:absolute; right:12px; top:50%; transform:translateY(-50%);
+          cursor:pointer; font-size:15px; color:#7a6d62; user-select:none;
+        ">&#128065;</span>
+      </div>
+    </div>
+    <div id="login-error" style="
+      color:#c0392b; font-size:0.8rem; min-height:20px;
+      margin-bottom:14px; text-align:left; display:none;
+    ">Incorrect Login ID or Password. Please try again.</div>
+    <button onclick="doLogin()" style="
+      width:100%; padding:13px;
+      background:linear-gradient(135deg,#1a4a5c,#2e7d8a);
+      color:#fff; border:none; border-radius:8px;
+      font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:500;
+      cursor:pointer; letter-spacing:0.02em;
+      box-shadow:0 4px 16px rgba(26,74,92,0.3);
+    ">Sign In</button>
+    <p style="font-size:0.72rem; color:#b0a89e; margin-top:20px;">Secured access — Devka Beach Resort staff only</p>
+  </div>
+</div>
+
+<script>
+  function doLogin() {
+    var id   = document.getElementById('login-id').value.trim();
+    var pass = document.getElementById('login-pass').value.trim();
+    var err  = document.getElementById('login-error');
+    if (id === 'DBR63' && pass === 'devka') {
+      document.getElementById('login-screen').style.display = 'none';
+      err.style.display = 'none';
+    } else {
+      err.style.display = 'block';
+      document.getElementById('login-id').style.borderColor   = '#c0392b';
+      document.getElementById('login-pass').style.borderColor = '#c0392b';
+      setTimeout(function() {
+        document.getElementById('login-id').style.borderColor   = '#d4c9bc';
+        document.getElementById('login-pass').style.borderColor = '#d4c9bc';
+      }, 2000);
+    }
+  }
+  function togglePass() {
+    var p = document.getElementById('login-pass');
+    var e = document.getElementById('eye-icon');
+    if (p.type === 'password') { p.type = 'text'; e.textContent = 'hide'; }
+    else { p.type = 'password'; e.textContent = 'show'; }
+  }
+</script>
+<!-- ── END LOGIN ── -->
+
 <!-- HEADER -->
 <header>
   <div class="header-inner">
