@@ -780,6 +780,7 @@
     const curMo   = today.slice(0,7);
     const now     = new Date();
 
+    if (!$('stat-total')) return;
     $('stat-total').textContent    = list.length;
     $('stat-today').textContent    = list.filter(e => e.date === today).length;
     $('stat-month').textContent    = list.filter(e => monthStr(e.date) === curMo).length;
@@ -815,14 +816,16 @@
      RENDER TABLE
   ───────────────────────────────────────────── */
   window.renderTable = function() {
-    if (window._demoMode) { $('demo-notice').style.display = 'block'; }
+    const _dn = $('demo-notice'); if (window._demoMode && _dn) { _dn.style.display = 'block'; }
     updateStats();
     refreshMonthFilter();
 
     let list    = [...getList()];
-    const q     = $('search-input').value.toLowerCase().trim();
-    const fStat = $('filter-status').value;
-    const fMo   = $('filter-month').value;
+    const _si = $('search-input'), _fs = $('filter-status'), _fm = $('filter-month');
+    if (!_si || !_fs || !_fm) return;
+    const q     = _si.value.toLowerCase().trim();
+    const fStat = _fs.value;
+    const fMo   = _fm.value;
 
     // Filter
     if (q)     list = list.filter(e => [e.name,e.company,e.contact,e.remark].join(' ').toLowerCase().includes(q));
@@ -841,7 +844,7 @@
       return 0;
     });
 
-    const tbody = $('table-body');
+    const tbody = $('table-body'); if (!tbody) return;
     if (!list.length) {
       tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
         <div class="icon">📋</div>
