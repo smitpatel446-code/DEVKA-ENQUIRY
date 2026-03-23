@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Devka Beach Resort — Enquiry Manager</title>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, orderBy, query, serverTimestamp, onSnapshot }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  /* ─── PASTE YOUR FIREBASE CONFIG HERE ─────────────────────────────────────
+     Go to: Firebase Console → Project Settings → Your Apps → Web App
+     Copy the firebaseConfig object and replace the one below.
+  ─────────────────────────────────────────────────────────────────────────── */
+  const firebaseConfig = {
+     apiKey: "AIzaSyDHQg21hFd699U_Al0dH3emz_-hJ375pT0",
+    authDomain: "devka-web.firebaseapp.com",
+    projectId: "devka-web",
+    storageBucket: "devka-web.firebasestorage.app",
+    messagingSenderId: "240396315583",
+    appId: "1:240396315583:web:bf0a735fe66ba154b70f0a"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const COL  = "enquiries";
+
+  // expose to window so vanilla JS can call
+  window._db = db;
+  window._col = COL;
+  window._fns = { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, orderBy, query, serverTimestamp, onSnapshot };
+
+  // Live listener — fires whenever data changes
+  const q = query(collection(db, COL), orderBy("createdAt", "desc"));
+  onSnapshot(q, snap => {
+    window._enquiries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (typeof window.renderTable === "function") window.renderTable();
+  }, err => {
+    console.error("Firestore error:", err);
+    // If config not set yet, show demo mode
+    if (err.code === "invalid-argument" || err.message.includes("projectId")) {
+      window._demoMode = true;
+      if (typeof window.renderTable === "function") window.renderTable();
+    }
+  });
+</script>
+
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+<style>
+  :root {
+    --sand:    #f4ede3;
+    --sand2:   #e8ddd0;
+    --ocean:   #1a4a5c;
+    --ocean2:  #0d3040;
+    --wave:    #2e7d8a;
+    --gold:    #c9954a;
+    --gold2:   #e8b96a;
+    --white:   #fdfaf7;
+    --text:    #2a2118;
+    --muted:   #7a6d62;
+    --border:  #d4c9bc;
+    --success: #2e7d5a;
+    --danger:  #c0392b;
+    --shadow:  0 4px 24px rgba(26,74,92,0.10);
+    --r: 10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--sand);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, var(--ocean2) 0%, var(--ocean) 60%, var(--wave) 100%);
+    color: var(--white);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='rgba(255,255,255,0.04)' d='M0,60 C240,100 480,20 720,60 C960,100 1200,20 1440,60 L1440,120 L0,120Z'/%3E%3C/svg%3E") bottom/100% no-repeat;
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 32px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+  }
+  .header-logo {
+    width: 56px; height: 56px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 4px rgba(201,149,74,0.3);
+  }
+  .header-text h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+  }
+  .header-text p {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.65);
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .header-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.8);
+    letter-spacing: 0.05em;
+  }
+  #live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: #4ddb8a;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px 60px;
+  }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--r);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--gold);
+    transition: transform .2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card .num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: var(--ocean);
+    line-height: 1;
+  }
+  .stat-card .lbl {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── DEMO NOTICE ── */
+  #demo-notice {
+    background: linear-gradient(135deg, #fff8e6, #ffe9b0);
+    border: 1.5px solid var(--gold);
+    border-radius: var(--r);
+    padding: 18px 24px;
+    margin-bottom: 28px;
+    display: none;
+    font-size: 0.88rem;
+    color: #7a5500;
+    line-height: 1.6;
+  }
+  #demo-notice strong { color: #5a3e00; }
+  #demo-notice code {
+    background: rgba(0,0,0,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.83rem;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--white);
+    border-radius: var(--r);
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .card-header h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--ocean);
+    flex: 1;
+  }
+  .card-body { padding: 28px; }
+
+  /* ── FORM GRID ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  label span.req { color: var(--danger); margin-left: 2px; }
+  input, textarea, select {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.93rem;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    color: var(--text);
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--wave);
+    box-shadow: 0 0 0 3px rgba(46,125,138,0.12);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.87rem;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all .18s;
+    display: inline-flex; align-items: center; gap: 7px;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--ocean) 0%, var(--wave) 100%);
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(26,74,92,0.25);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(26,74,92,0.35); }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%);
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(201,149,74,0.3);
+  }
+  .btn-gold:hover { transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-outline:hover { border-color: var(--wave); color: var(--wave); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+
+  .form-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(244,237,227,0.5);
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+  }
+  .search-wrap input {
+    width: 100%;
+    padding-left: 36px;
+    font-size: 0.88rem;
+  }
+  .search-icon {
+    position: absolute;
+    left: 11px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  .filter-select {
+    font-size: 0.85rem;
+    padding: 9px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    overflow-x: auto;
+    padding: 0 0 4px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+  }
+  thead tr {
+    background: linear-gradient(135deg, var(--ocean2), var(--ocean));
+    color: rgba(255,255,255,0.9);
+  }
+  th {
+    padding: 13px 16px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { background: rgba(255,255,255,0.1); }
+  th .sort-icon { margin-left: 4px; opacity: 0.5; }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:hover { background: rgba(46,125,138,0.05); }
+  tbody tr:last-child { border-bottom: none; }
+  td {
+    padding: 13px 16px;
+    vertical-align: middle;
+    max-width: 200px;
+  }
+  td .cell-main { font-weight: 500; color: var(--text); }
+  td .cell-sub  { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+  td.actions { white-space: nowrap; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .badge-new    { background: #e8f4fd; color: #1565c0; }
+  .badge-done   { background: #e8f5e9; color: var(--success); }
+  .badge-follow { background: #fff8e1; color: #e65100; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 0.9rem; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(13,48,64,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--white);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(13,48,64,0.4);
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .modal-header {
+    padding: 24px 28px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    position: sticky; top: 0;
+    background: var(--white);
+    z-index: 1;
+  }
+  .modal-header h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    color: var(--ocean);
+    flex: 1;
+  }
+  .modal-close {
+    width: 32px; height: 32px;
+    background: var(--sand);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    transition: background .15s;
+  }
+  .modal-close:hover { background: var(--sand2); }
+  .modal-body { padding: 24px 28px 28px; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 32px; right: 32px;
+    background: var(--ocean);
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s ease;
+    z-index: 9999;
+    display: flex; align-items: center; gap: 10px;
+    max-width: 340px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { background: var(--success); }
+  #toast.error   { background: var(--danger); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 28px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+  }
+  footer strong { color: var(--ocean); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .header-inner { padding: 20px 20px 24px; gap: 16px; }
+    .header-text h1 { font-size: 1.5rem; }
+    .header-badge { display: none; }
+    .main { padding: 20px 14px 50px; }
+    .card-body { padding: 20px 16px; }
+    .toolbar { padding: 12px 16px; }
+    th, td { padding: 10px 12px; }
+  }
+
+  .remark-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .number-badge {
+    width: 28px; height: 28px;
+    background: var(--ocean);
+    color: #fff;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .section-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.05rem;
+    color: var(--ocean);
+    font-weight: 600;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="header-logo">🏖️</div>
+    <div class="header-text">
+      <h1>Devka Beach Resort</h1>
+      <p>Enquiry Management System</p>
+    </div>
+    <div class="header-badge">
+      <span id="live-dot"></span> Live Database
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- Demo notice -->
+  <div id="demo-notice">
+    <strong>⚙️ Setup Required:</strong> This app needs your Firebase project credentials to save data permanently.
+    <br>1. Create a free project at <strong>firebase.google.com</strong> → Add a Web App → Copy your config
+    <br>2. Open this HTML file in a text editor, find <code>const firebaseConfig = {</code> and paste your config there.
+    <br>3. In Firebase Console → Firestore Database → Create Database (test mode) → Done!
+    <br><em>Until then, data entered below is shown in demo mode (not saved).</em>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="num" id="stat-total">0</div>
+      <div class="lbl">Total Enquiries</div>
+    </div>
+    <div class="stat-card" style="border-color: var(--wave);">
+      <div class="num" id="stat-today">0</div>
+      <div class="lbl">Today</div>
+    </div>
+    <div class="stat-card" style="border-color: var(--gold);">
+      <div class="num" id="stat-month">0</div>
+      <div class="lbl">This Month</div>
+    </div>
+    <div class="stat-card" style="border-color: var(--success);">
+      <div class="num" id="stat-upcoming">0</div>
+      <div class="lbl">Upcoming Events</div>
+    </div>
+  </div>
+
+  <!-- FORM CARD -->
+  <div class="card">
+    <div class="card-header">
+      <div class="number-badge">+</div>
+      <h2>New Enquiry Entry</h2>
+    </div>
+    <div class="card-body">
+      <div id="form-section-label" class="section-label">Guest &amp; Contact Details</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>① Date of Enquiry <span class="req">*</span></label>
+          <input type="date" id="f-date"/>
+        </div>
+        <div class="form-group">
+          <label>② Guest / Person Name <span class="req">*</span></label>
+          <input type="text" id="f-name" placeholder="e.g. Rahul Sharma"/>
+        </div>
+        <div class="form-group">
+          <label>③ Company Name</label>
+          <input type="text" id="f-company" placeholder="Company or Organisation (optional)"/>
+        </div>
+        <div class="form-group">
+          <label>④ Contact Number <span class="req">*</span></label>
+          <input type="tel" id="f-contact" placeholder="+91 98765 43210"/>
+        </div>
+        <div class="form-group">
+          <label>⑤ Date of Function / Event <span class="req">*</span></label>
+          <input type="date" id="f-event-date"/>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="f-status">
+            <option value="New">🔵 New</option>
+            <option value="Follow Up">🟠 Follow Up</option>
+            <option value="Confirmed">🟢 Confirmed</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>⑥ Remarks / Customer Requirements</label>
+          <textarea id="f-remark" placeholder="Write any special requirements, event type, guest count, preferences, etc..."></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="submitForm()">✓ &nbsp;Save Enquiry</button>
+        <button class="btn btn-outline" onclick="clearForm()">✕ &nbsp;Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORDS CARD -->
+  <div class="card">
+    <div class="card-header">
+      <div class="number-badge">≡</div>
+      <h2>Enquiry Records</h2>
+      <button class="btn btn-gold btn-sm" onclick="exportExcel()" style="margin-left:auto">
+        ↓ &nbsp;Export Excel
+      </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search by name, company, contact…" oninput="renderTable()"/>
+      </div>
+      <select class="filter-select" id="filter-status" onchange="renderTable()">
+        <option value="">All Status</option>
+        <option value="New">New</option>
+        <option value="Follow Up">Follow Up</option>
+        <option value="Confirmed">Confirmed</option>
+      </select>
+      <select class="filter-select" id="filter-month" onchange="renderTable()">
+        <option value="">All Months</option>
+      </select>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table id="enquiry-table">
+        <thead>
+          <tr>
+            <th onclick="sortBy('createdAt')">#</th>
+            <th onclick="sortBy('date')">Date <span class="sort-icon">↕</span></th>
+            <th onclick="sortBy('name')">Guest Name <span class="sort-icon">↕</span></th>
+            <th onclick="sortBy('company')">Company <span class="sort-icon">↕</span></th>
+            <th>Contact</th>
+            <th onclick="sortBy('eventDate')">Event Date <span class="sort-icon">↕</span></th>
+            <th>Status</th>
+            <th>Remarks</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="9"><div class="empty-state"><div class="icon">🌊</div><p>Loading enquiries…</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Edit Enquiry</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date of Enquiry</label>
+          <input type="date" id="e-date"/>
+        </div>
+        <div class="form-group">
+          <label>Guest / Person Name</label>
+          <input type="text" id="e-name"/>
+        </div>
+        <div class="form-group">
+          <label>Company Name</label>
+          <input type="text" id="e-company"/>
+        </div>
+        <div class="form-group">
+          <label>Contact Number</label>
+          <input type="tel" id="e-contact"/>
+        </div>
+        <div class="form-group">
+          <label>Date of Function / Event</label>
+          <input type="date" id="e-event-date"/>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="e-status">
+            <option value="New">New</option>
+            <option value="Follow Up">Follow Up</option>
+            <option value="Confirmed">Confirmed</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Remarks / Requirements</label>
+          <textarea id="e-remark" style="min-height:100px"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveEdit()">✓ &nbsp;Update Enquiry</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- FOOTER -->
+<footer>
+  <strong>Devka Beach Resort</strong> &nbsp;·&nbsp; Enquiry Management System &nbsp;·&nbsp; Powered by Firebase
+</footer>
+
+<script>
+  /* ─────────────────────────────────────────────
+     DATA LAYER — Demo fallback & state
+  ───────────────────────────────────────────── */
+  window._enquiries = window._enquiries || [];
+  window._demoMode  = window._demoMode  || false;
+  let _demoData = [];
+  let _demoCounter = 1;
+  let _sortKey = 'createdAt';
+  let _sortAsc = false;
+  let _editId  = null;
+
+  // Demo data seed
+  _demoData = [
+    { id:'d1', date:'2025-06-14', name:'Priya Mehta', company:'Mehta Exports', contact:'9876543210', eventDate:'2025-07-20', status:'New', remark:'Corporate dinner for 80 guests, veg menu preferred', createdAt:{seconds:1718323200} },
+    { id:'d2', date:'2025-06-10', name:'Ramesh Patel', company:'', contact:'9988776655', eventDate:'2025-08-05', status:'Follow Up', remark:'Birthday party 25 pax, DJ required', createdAt:{seconds:1718064000} },
+  ];
+
+  /* ─────────────────────────────────────────────
+     UTILITIES
+  ───────────────────────────────────────────── */
+  const $  = id => document.getElementById(id);
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const todayStr = () => new Date().toISOString().split('T')[0];
+  const monthStr = d => d ? d.slice(0,7) : '';
+
+  function toast(msg, type='success') {
+    const el = $('toast');
+    el.textContent = (type==='success'?'✓ ':'✕ ') + msg;
+    el.className   = 'show ' + type;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ''; }, 3200);
+  }
+
+  function getList() {
+    return (window._demoMode || !window._fns)
+      ? _demoData
+      : (window._enquiries || []);
+  }
+
+  /* ─────────────────────────────────────────────
+     STATS
+  ───────────────────────────────────────────── */
+  function updateStats() {
+    const list    = getList();
+    const today   = todayStr();
+    const curMo   = today.slice(0,7);
+    const now     = new Date();
+
+    $('stat-total').textContent    = list.length;
+    $('stat-today').textContent    = list.filter(e => e.date === today).length;
+    $('stat-month').textContent    = list.filter(e => monthStr(e.date) === curMo).length;
+    $('stat-upcoming').textContent = list.filter(e => e.eventDate && new Date(e.eventDate) >= now).length;
+  }
+
+  /* ─────────────────────────────────────────────
+     MONTH FILTER OPTIONS
+  ───────────────────────────────────────────── */
+  function refreshMonthFilter() {
+    const list    = getList();
+    const months  = [...new Set(list.map(e => monthStr(e.date)).filter(Boolean))].sort().reverse();
+    const sel     = $('filter-month');
+    const cur     = sel.value;
+    sel.innerHTML = '<option value="">All Months</option>' +
+      months.map(m => {
+        const [y, mo] = m.split('-');
+        const label   = new Date(+y, +mo-1).toLocaleString('default',{month:'long',year:'numeric'});
+        return `<option value="${m}"${m===cur?' selected':''}>${label}</option>`;
+      }).join('');
+  }
+
+  /* ─────────────────────────────────────────────
+     SORT
+  ───────────────────────────────────────────── */
+  function sortBy(key) {
+    if (_sortKey === key) _sortAsc = !_sortAsc;
+    else { _sortKey = key; _sortAsc = true; }
+    renderTable();
+  }
+
+  /* ─────────────────────────────────────────────
+     RENDER TABLE
+  ───────────────────────────────────────────── */
+  window.renderTable = function() {
+    if (window._demoMode) { $('demo-notice').style.display = 'block'; }
+    updateStats();
+    refreshMonthFilter();
+
+    let list    = [...getList()];
+    const q     = $('search-input').value.toLowerCase().trim();
+    const fStat = $('filter-status').value;
+    const fMo   = $('filter-month').value;
+
+    // Filter
+    if (q)     list = list.filter(e => [e.name,e.company,e.contact,e.remark].join(' ').toLowerCase().includes(q));
+    if (fStat) list = list.filter(e => e.status === fStat);
+    if (fMo)   list = list.filter(e => monthStr(e.date) === fMo);
+
+    // Sort
+    list.sort((a,b) => {
+      let va = a[_sortKey], vb = b[_sortKey];
+      if (_sortKey === 'createdAt') {
+        va = va?.seconds || 0;
+        vb = vb?.seconds || 0;
+      }
+      if (va < vb) return _sortAsc ? -1 : 1;
+      if (va > vb) return _sortAsc ?  1 : -1;
+      return 0;
+    });
+
+    const tbody = $('table-body');
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
+        <div class="icon">📋</div>
+        <p>No enquiries found. Add your first one above!</p>
+      </div></td></tr>`;
+      return;
+    }
+
+    const statusBadge = s => {
+      if (s==='Confirmed') return `<span class="badge badge-done">✓ Confirmed</span>`;
+      if (s==='Follow Up') return `<span class="badge badge-follow">↻ Follow Up</span>`;
+      return `<span class="badge badge-new">● New</span>`;
+    };
+
+    tbody.innerHTML = list.map((e, i) => `
+      <tr>
+        <td style="color:var(--muted);font-size:.78rem;">${i+1}</td>
+        <td><div class="cell-main">${fmtDate(e.date)}</div></td>
+        <td><div class="cell-main">${esc(e.name||'—')}</div></td>
+        <td><div class="cell-sub">${esc(e.company||'—')}</div></td>
+        <td>
+          <div class="cell-main">${esc(e.contact||'—')}</div>
+          <div class="cell-sub">
+            <a href="tel:${e.contact}" style="color:var(--wave);text-decoration:none;">📞 Call</a>
+            &nbsp;
+            <a href="https://wa.me/91${e.contact?.replace(/\D/g,'')}" target="_blank" style="color:var(--success);text-decoration:none;">💬 WA</a>
+          </div>
+        </td>
+        <td><div class="cell-main">${fmtDate(e.eventDate)}</div></td>
+        <td>${statusBadge(e.status)}</td>
+        <td><div class="remark-cell" title="${esc(e.remark||'')}">
+          ${esc(e.remark||'—')}
+        </div></td>
+        <td class="actions">
+          <button class="btn btn-outline btn-sm" onclick="openEdit('${e.id}')">✏️</button>
+          &nbsp;
+          <button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')">🗑</button>
+        </td>
+      </tr>
+    `).join('');
+  };
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ─────────────────────────────────────────────
+     SUBMIT FORM
+  ───────────────────────────────────────────── */
+  async function submitForm() {
+    const date      = $('f-date').value;
+    const name      = $('f-name').value.trim();
+    const company   = $('f-company').value.trim();
+    const contact   = $('f-contact').value.trim();
+    const eventDate = $('f-event-date').value;
+    const remark    = $('f-remark').value.trim();
+    const status    = $('f-status').value;
+
+    if (!date || !name || !contact || !eventDate) {
+      toast('Please fill all required fields (marked with *)', 'error'); return;
+    }
+
+    const record = { date, name, company, contact, eventDate, remark, status };
+
+    if (window._demoMode || !window._fns) {
+      _demoData.unshift({ id:'d'+(_demoCounter++), ...record, createdAt:{seconds: Date.now()/1000} });
+      toast('Entry added (Demo mode — configure Firebase to save permanently)');
+      clearForm();
+      renderTable();
+      return;
+    }
+
+    try {
+      const { collection, addDoc, serverTimestamp } = window._fns;
+      await addDoc(collection(window._db, window._col), { ...record, createdAt: serverTimestamp() });
+      toast('Enquiry saved successfully!');
+      clearForm();
+    } catch(err) {
+      console.error(err);
+      toast('Error saving. Check Firebase config.', 'error');
+    }
+  }
+
+  function clearForm() {
+    ['f-date','f-name','f-company','f-contact','f-event-date','f-remark'].forEach(id => $( id).value='');
+    $('f-date').value = todayStr();
+    $('f-status').value = 'New';
+  }
+
+  /* ─────────────────────────────────────────────
+     DELETE
+  ───────────────────────────────────────────── */
+  async function deleteEntry(id) {
+    if (!confirm('Delete this enquiry? This cannot be undone.')) return;
+
+    if (window._demoMode || !window._fns) {
+      _demoData = _demoData.filter(e => e.id !== id);
+      toast('Deleted (Demo mode)'); renderTable(); return;
+    }
+
+    try {
+      const { doc, deleteDoc } = window._fns;
+      await deleteDoc(doc(window._db, window._col, id));
+      toast('Enquiry deleted.');
+    } catch(err) {
+      toast('Error deleting.', 'error');
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     EDIT MODAL
+  ───────────────────────────────────────────── */
+  function openEdit(id) {
+    const e = getList().find(x => x.id === id);
+    if (!e) return;
+    _editId = id;
+    $('e-date').value       = e.date       || '';
+    $('e-name').value       = e.name       || '';
+    $('e-company').value    = e.company    || '';
+    $('e-contact').value    = e.contact    || '';
+    $('e-event-date').value = e.eventDate  || '';
+    $('e-status').value     = e.status     || 'New';
+    $('e-remark').value     = e.remark     || '';
+    $('edit-modal').classList.add('active');
+  }
+
+  function closeModal() {
+    $('edit-modal').classList.remove('active');
+    _editId = null;
+  }
+
+  async function saveEdit() {
+    if (!_editId) return;
+    const data = {
+      date:      $('e-date').value,
+      name:      $('e-name').value.trim(),
+      company:   $('e-company').value.trim(),
+      contact:   $('e-contact').value.trim(),
+      eventDate: $('e-event-date').value,
+      status:    $('e-status').value,
+      remark:    $('e-remark').value.trim(),
+    };
+
+    if (window._demoMode || !window._fns) {
+      const i = _demoData.findIndex(e => e.id === _editId);
+      if (i > -1) _demoData[i] = { ..._demoData[i], ...data };
+      toast('Updated (Demo mode)'); closeModal(); renderTable(); return;
+    }
+
+    try {
+      const { doc, updateDoc } = window._fns;
+      await updateDoc(doc(window._db, window._col, _editId), data);
+      toast('Enquiry updated!'); closeModal();
+    } catch(err) {
+      toast('Error updating.', 'error');
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     EXCEL EXPORT
+  ───────────────────────────────────────────── */
+  function exportExcel() {
+    const list = getList();
+    if (!list.length) { toast('No data to export.', 'error'); return; }
+
+    const headers = ['#','Date of Enquiry','Guest Name','Company','Contact Number','Event Date','Status','Remarks / Requirements'];
+    const rows = list.map((e,i) => [
+      i+1,
+      e.date      ? new Date(e.date).toLocaleDateString('en-IN') : '',
+      e.name      || '',
+      e.company   || '',
+      e.contact   || '',
+      e.eventDate ? new Date(e.eventDate).toLocaleDateString('en-IN') : '',
+      e.status    || '',
+      e.remark    || '',
+    ]);
+
+    const wsData = [headers, ...rows];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws['!cols'] = [
+      {wch:4},{wch:16},{wch:22},{wch:22},{wch:16},{wch:16},{wch:12},{wch:40}
+    ];
+
+    // Style header row
+    headers.forEach((_, ci) => {
+      const cell = XLSX.utils.encode_cell({r:0, c:ci});
+      if (!ws[cell]) return;
+      ws[cell].s = {
+        font:    { bold:true, color:{rgb:'FFFFFF'} },
+        fill:    { fgColor:{rgb:'1A4A5C'} },
+        alignment: { horizontal:'center', vertical:'center' }
+      };
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Enquiries');
+
+    const today = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `Devka_Beach_Resort_Enquiries_${today}.xlsx`);
+    toast(`Exported ${list.length} enquiry records to Excel!`);
+  }
+
+  /* ─────────────────────────────────────────────
+     INIT
+  ───────────────────────────────────────────── */
+  // Close modal on overlay click
+  $('edit-modal').addEventListener('click', e => {
+    if (e.target === $('edit-modal')) closeModal();
+  });
+
+  // Set default date
+  $('f-date').value = todayStr();
+
+  // Initial render (before Firebase loads)
+  setTimeout(() => {
+    if (!window._enquiries?.length && !window._demoMode) {
+      // Firebase hasn't connected yet — check after 3s
+      setTimeout(() => {
+        if (!window._enquiries?.length) {
+          window._demoMode = true;
+          renderTable();
+        }
+      }, 3000);
+    }
+    renderTable();
+  }, 800);
+</script>
+</body>
+</html>
