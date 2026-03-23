@@ -5,48 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Devka Beach Resort — Enquiry Manager</title>
 
-<!-- Firebase -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, orderBy, query, serverTimestamp, onSnapshot }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  /* ─── PASTE YOUR FIREBASE CONFIG HERE ─────────────────────────────────────
-     Go to: Firebase Console → Project Settings → Your Apps → Web App
-     Copy the firebaseConfig object and replace the one below.
-  ─────────────────────────────────────────────────────────────────────────── */
-  const firebaseConfig = {
-  apiKey: "AIzaSyDHQg21hFd699U_Al0dH3emz_-hJ375pT0",
-  authDomain: "devka-web.firebaseapp.com",
-  projectId: "devka-web",
-  storageBucket: "devka-web.firebasestorage.app",
-  messagingSenderId: "240396315583",
-  appId: "1:240396315583:web:bf0a735fe66ba154b70f0a"
-};
-
-  const app  = initializeApp(firebaseConfig);
-  const db   = getFirestore(app);
-  const COL  = "enquiries";
-
-  // expose to window so vanilla JS can call
-  window._db = db;
-  window._col = COL;
-  window._fns = { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, orderBy, query, serverTimestamp, onSnapshot };
-
-  // Live listener — fires whenever data changes
-  const q = query(collection(db, COL), orderBy("createdAt", "desc"));
-  onSnapshot(q, snap => {
-    window._enquiries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (typeof window.renderTable === "function") window.renderTable();
-  }, err => {
-    console.error("Firestore error:", err);
-    // If config not set yet, show demo mode
-    if (err.code === "invalid-argument" || err.message.includes("projectId")) {
-      window._demoMode = true;
-      if (typeof window.renderTable === "function") window.renderTable();
-    }
-  });
-</script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -781,6 +742,7 @@
     const now     = new Date();
 
     if (!$('stat-total')) return;
+    if (!$('stat-total')) return;
     $('stat-total').textContent    = list.length;
     $('stat-today').textContent    = list.filter(e => e.date === today).length;
     $('stat-month').textContent    = list.filter(e => monthStr(e.date) === curMo).length;
@@ -794,6 +756,7 @@
     const list    = getList();
     const months  = [...new Set(list.map(e => monthStr(e.date)).filter(Boolean))].sort().reverse();
     const sel     = $('filter-month');
+    if (!sel) return;
     const cur     = sel.value;
     sel.innerHTML = '<option value="">All Months</option>' +
       months.map(m => {
@@ -909,7 +872,7 @@
 
     const record = { date, name, company, contact, eventDate, remark, status };
 
-    if (window._demoMode || !window._fns) {
+    if (window._demoMode || !window._db) {
       _demoData.unshift({ id:'d'+(_demoCounter++), ...record, createdAt:{seconds: Date.now()/1000} });
       toast('Entry added (Demo mode — configure Firebase to save permanently)');
       clearForm();
@@ -918,13 +881,12 @@
     }
 
     try {
-      const { collection, addDoc, serverTimestamp } = window._fns;
-      await addDoc(collection(window._db, window._col), { ...record, createdAt: serverTimestamp() });
+      await window._db.collection(window._col).add({ ...record, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
       toast('Enquiry saved successfully!');
       clearForm();
     } catch(err) {
       console.error(err);
-      toast('Error saving. Check Firebase config.', 'error');
+      toast('Error saving: ' + err.message, 'error');
     }
   }
 
@@ -940,17 +902,17 @@
   async function deleteEntry(id) {
     if (!confirm('Delete this enquiry? This cannot be undone.')) return;
 
-    if (window._demoMode || !window._fns) {
+    if (window._demoMode || !window._db) {
       _demoData = _demoData.filter(e => e.id !== id);
       toast('Deleted (Demo mode)'); renderTable(); return;
     }
 
     try {
-      const { doc, deleteDoc } = window._fns;
-      await deleteDoc(doc(window._db, window._col, id));
+      await window._db.collection(window._col).doc(id).delete();
       toast('Enquiry deleted.');
     } catch(err) {
-      toast('Error deleting.', 'error');
+      console.error(err);
+      toast('Error deleting: ' + err.message, 'error');
     }
   }
 
@@ -988,18 +950,18 @@
       remark:    $('e-remark').value.trim(),
     };
 
-    if (window._demoMode || !window._fns) {
+    if (window._demoMode || !window._db) {
       const i = _demoData.findIndex(e => e.id === _editId);
       if (i > -1) _demoData[i] = { ..._demoData[i], ...data };
       toast('Updated (Demo mode)'); closeModal(); renderTable(); return;
     }
 
     try {
-      const { doc, updateDoc } = window._fns;
-      await updateDoc(doc(window._db, window._col, _editId), data);
+      await window._db.collection(window._col).doc(_editId).update(data);
       toast('Enquiry updated!'); closeModal();
     } catch(err) {
-      toast('Error updating.', 'error');
+      console.error(err);
+      toast('Error updating: ' + err.message, 'error');
     }
   }
 
@@ -1052,27 +1014,49 @@
   /* ─────────────────────────────────────────────
      INIT
   ───────────────────────────────────────────── */
-  // Close modal on overlay click
-  $('edit-modal').addEventListener('click', e => {
-    if (e.target === $('edit-modal')) closeModal();
-  });
+  document.addEventListener('DOMContentLoaded', function() {
 
-  // Set default date
-  $('f-date').value = todayStr();
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDHQg21hFd699U_Al0dH3emz_-hJ375pT0",
+      authDomain: "devka-web.firebaseapp.com",
+      projectId: "devka-web",
+      storageBucket: "devka-web.firebasestorage.app",
+      messagingSenderId: "240396315583",
+      appId: "1:240396315583:web:bf0a735fe66ba154b70f0a"
+    };
 
-  // Initial render (before Firebase loads)
-  setTimeout(() => {
-    if (!window._enquiries?.length && !window._demoMode) {
-      // Firebase hasn't connected yet — check after 3s
-      setTimeout(() => {
-        if (!window._enquiries?.length) {
-          window._demoMode = true;
-          renderTable();
-        }
-      }, 3000);
-    }
+    firebase.initializeApp(firebaseConfig);
+    const db  = firebase.firestore();
+    const COL = "enquiries";
+
+    // Real-time listener
+    db.collection(COL).orderBy("createdAt", "desc").onSnapshot(snap => {
+      window._enquiries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      window._db  = db;
+      window._col = COL;
+      renderTable();
+    }, err => {
+      console.error("Firestore error:", err);
+      window._demoMode = true;
+      renderTable();
+    });
+
+    // Expose db for save/update/delete
+    window._db  = db;
+    window._col = COL;
+
+    // Close modal on overlay click
+    $('edit-modal').addEventListener('click', e => {
+      if (e.target === $('edit-modal')) closeModal();
+    });
+
+    // Set default date
+    $('f-date').value = todayStr();
+
+    // Initial render
     renderTable();
-  }, 800);
+  });
 </script>
 </body>
 </html>
