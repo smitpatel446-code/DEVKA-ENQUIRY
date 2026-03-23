@@ -727,7 +727,7 @@
   }
 
   function getList() {
-    return (window._demoMode || !window._fns)
+    return (window._demoMode || !window._db)
       ? _demoData
       : (window._enquiries || []);
   }
@@ -741,7 +741,6 @@
     const curMo   = today.slice(0,7);
     const now     = new Date();
 
-    if (!$('stat-total')) return;
     if (!$('stat-total')) return;
     $('stat-total').textContent    = list.length;
     $('stat-today').textContent    = list.filter(e => e.date === today).length;
