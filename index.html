@@ -16,16 +16,15 @@
      Copy the firebaseConfig object and replace the one below.
   ─────────────────────────────────────────────────────────────────────────── */
   const firebaseConfig = {
-     apiKey: "AIzaSyDHQg21hFd699U_Al0dH3emz_-hJ375pT0",
-    authDomain: "devka-web.firebaseapp.com",
-    projectId: "devka-web",
-    storageBucket: "devka-web.firebasestorage.app",
-    messagingSenderId: "240396315583",
-    appId: "1:240396315583:web:bf0a735fe66ba154b70f0a"
-  };
+  apiKey: "AIzaSyDHQg21hFd699U_Al0dH3emz_-hJ375pT0",
+  authDomain: "devka-web.firebaseapp.com",
+  projectId: "devka-web",
+  storageBucket: "devka-web.firebasestorage.app",
+  messagingSenderId: "240396315583",
+  appId: "1:240396315583:web:bf0a735fe66ba154b70f0a"
+};
 
   const app  = initializeApp(firebaseConfig);
-  const db   = getFirestore(app);
   const COL  = "enquiries";
 
   // expose to window so vanilla JS can call
@@ -558,16 +557,6 @@
 
 <!-- MAIN -->
 <div class="main">
-
-  <!-- Demo notice -->
-  <div id="demo-notice">
-    <strong>⚙️ Setup Required:</strong> This app needs your Firebase project credentials to save data permanently.
-    <br>1. Create a free project at <strong>firebase.google.com</strong> → Add a Web App → Copy your config
-    <br>2. Open this HTML file in a text editor, find <code>const firebaseConfig = {</code> and paste your config there.
-    <br>3. In Firebase Console → Firestore Database → Create Database (test mode) → Done!
-    <br><em>Until then, data entered below is shown in demo mode (not saved).</em>
-  </div>
-
   <!-- Stats -->
   <div class="stats-bar">
     <div class="stat-card">
@@ -758,12 +747,6 @@
   let _sortKey = 'createdAt';
   let _sortAsc = false;
   let _editId  = null;
-
-  // Demo data seed
-  _demoData = [
-    { id:'d1', date:'2025-06-14', name:'Priya Mehta', company:'Mehta Exports', contact:'9876543210', eventDate:'2025-07-20', status:'New', remark:'Corporate dinner for 80 guests, veg menu preferred', createdAt:{seconds:1718323200} },
-    { id:'d2', date:'2025-06-10', name:'Ramesh Patel', company:'', contact:'9988776655', eventDate:'2025-08-05', status:'Follow Up', remark:'Birthday party 25 pax, DJ required', createdAt:{seconds:1718064000} },
-  ];
 
   /* ─────────────────────────────────────────────
      UTILITIES
